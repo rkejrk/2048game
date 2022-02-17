@@ -8,7 +8,7 @@ public class DesktopLauncher {
 	static Consts consts = new Consts();
 	public static void main (String[] arg) {
 		Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-		config.setForegroundFPS(60);
+		config.setForegroundFPS(10);
 		config.setTitle("2048");
 		config.setWindowSizeLimits(
 				consts.STATIC_WIDTH,

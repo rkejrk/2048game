@@ -1,10 +1,10 @@
 package com.mygdx.game;
 
 
-import static sun.jvm.hotspot.debugger.win32.coff.DebugVC50X86RegisterEnums.TAG;
-
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.FPSLogger;
@@ -17,13 +17,10 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.sun.tools.javac.util.Log;
-
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
-public class MyGdxGame extends ApplicationAdapter {
+public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 	/**
 	 * 定数の参照
 	 */
@@ -44,12 +41,8 @@ public class MyGdxGame extends ApplicationAdapter {
 	/**
 	 * ログを残す
 	 */
-	private FPSLogger logger = new FPSLogger();
-	private com.badlogic.gdx.utils.Logger log_gdx = new com.badlogic.gdx.utils.Logger("ALRIGHT");
-	/**
-	 * ログ
-	 */
-	private Logger logger_java = Logger.getLogger("afs");
+	final private FPSLogger logger = new FPSLogger();
+	final private Logger logger_java = Logger.getLogger("afs");
 	/**
 	 * スプライトを画面上に表示する
 	 */
@@ -90,6 +83,10 @@ public class MyGdxGame extends ApplicationAdapter {
 	 * 1・・・追加する
 	 */
 	public int block_generator_flag = 1;
+	/**
+	 * 表示する画面の状態
+	 */
+	public int game_state = consts.GAME_OVER;
 
 	@Override
 	public void resize (int width, int height) {
@@ -101,10 +98,12 @@ public class MyGdxGame extends ApplicationAdapter {
 
 	@Override
 	public void create () {
-		//		設定を保存する
+		//設定を保存する
 		prefs = Gdx.app.getPreferences(consts.PREFERENCE_ID);
 		prefs.putInteger("count", 4);
 		prefs.flush();
+
+		Gdx.input.setInputProcessor(this);
 
 //		カメラで映す範囲を設定
 		camera = new OrthographicCamera(consts.STATIC_WIDTH, consts.STATIC_HEIGHT);
@@ -126,7 +125,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		shapeRenderer.setAutoShapeType(true);
 
 //		データの初期化
-		blockArray = new Array<Array<BlockModel>>();
+		blockArray = new Array<>();
 	}
 
 	@Override
@@ -140,20 +139,37 @@ public class MyGdxGame extends ApplicationAdapter {
 
 		logger.log();
 
-//		コンテンツの初期描画
-		int count = prefs.getInteger("count", 4);
-		generatorContentOutLine(count);
-//		新規ブロックデータの追加処理
-		if(block_generator_flag != consts.BLOCK_VALUE_NONE){
-			setNewBlock(count);
+		if(game_state == consts.GAME_PLAYING){
+
+//			コンテンツの初期描画
+			int count = prefs.getInteger("count", 4);
+
+			generatorContentOutLine(count);
+//			新規ブロックデータの追加処理
+			if(block_generator_flag != consts.BLOCK_VALUE_NONE){
+				setNewBlock(count);
+			}
+
+//			ブロックの描画
+			generatorBlock(count);
+
+//			採点
+			game_state = gameEndCheck();
+		} else {
+//			ゲームクリアまたは、オーバーの場合ブロック情報を初期化する
+			blockArray = new Array<>();
+
+//			TODO: 広告を表示
+
+//			文字を表示
+			batch.begin();
+			if(game_state == consts.GAME_OVER) {
+				bitmapFont.draw(batch, "GAME OVER \n\nAny Key Press \nNext Game", 20, new_height / 2f);
+			} else {
+				bitmapFont.draw(batch, "GAME CLEAR \n\nAny Key Press \nNext Game", 10, new_height / 2f);
+			}
+			batch.end();
 		}
-
-//		TODO:イベント処理
-		
-//		TODO:採点
-
-//		ブロックの描画
-		generatorBlock(count);
 	}
 
 	@Override
@@ -164,6 +180,68 @@ public class MyGdxGame extends ApplicationAdapter {
 		bitmapFont.dispose();
 	}
 
+	@Override
+	public boolean keyDown (int keycode) {
+		if(game_state != consts.GAME_PLAYING){
+			game_state = consts.GAME_PLAYING;
+			return true;
+		}
+		if(keycode == Input.Keys.UP){
+			upBlocks();
+		} else if(keycode == Input.Keys.DOWN){
+			downBlocks();
+		} else if(keycode == Input.Keys.RIGHT){
+			rightBlocks();
+		} else if(keycode == Input.Keys.LEFT){
+			leftBlocks();
+		}
+//		方向キーの場合新しいブロックを作成する
+		if (
+				keycode == Input.Keys.UP ||
+				keycode == Input.Keys.DOWN ||
+				keycode == Input.Keys.LEFT ||
+				keycode == Input.Keys.RIGHT
+		){
+			block_generator_flag = 1;
+		}
+		return true;
+	}
+
+	@Override
+	public boolean keyUp(int keycode) {
+		return false;
+	}
+
+	@Override
+	public boolean keyTyped(char character) {
+		return false;
+	}
+
+	@Override
+	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+		return false;
+	}
+
+	@Override
+	public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+		return false;
+	}
+
+	@Override
+	public boolean touchDragged(int screenX, int screenY, int pointer) {
+		return false;
+	}
+
+	@Override
+	public boolean mouseMoved(int screenX, int screenY) {
+		return false;
+	}
+
+	@Override
+	public boolean scrolled(float amountX, float amountY) {
+		return false;
+	}
+
 	/**
 	 * 指定行列数のマスを描画する
 	 * @param count マスの行数および列数
@@ -171,7 +249,6 @@ public class MyGdxGame extends ApplicationAdapter {
 	private void generatorContentOutLine(int count){
 //		背景描画
 		shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-//		shapeRenderer.setColor(0.835f, 0.737f, 0.68f, 1);
 		shapeRenderer.setColor(0.501f, 0.368f, 0.368f, 0.5f);
 		shapeRenderer.box(
 				-content_size / 2f,
@@ -186,12 +263,13 @@ public class MyGdxGame extends ApplicationAdapter {
 //		マス情報更新前の情報をバックアップ
 		Array<Array<BlockModel>> backUpArray = blockArray;
 //		現在の画面に合わせた新規マス情報を用意
-		blockArray = new Array<Array<BlockModel>>();
+		blockArray = new Array<>();
 		float blank_block_size = ((float) content_size / count) - (consts.BLOCK_MARGIN * 2) ;
 
-		for(int c_y=0; c_y < count; c_y++){
-			Array<BlockModel> columns = new Array<BlockModel>();
-			for(int c_x=0; c_x < count; c_x++){
+		int r_i = 0;
+		for(int c_y = count - 1; c_y >= 0; c_y--){
+			Array<BlockModel> columns = new Array<>();
+			for(int c_x = 0; c_x < count; c_x++){
 //				c_x,c_yとマスの表示領域の掛け算
 				float x = ((blank_block_size + (consts.BLOCK_MARGIN * 2)) * c_x)
 						- (content_size / 2f) + consts.BLOCK_MARGIN;
@@ -200,7 +278,6 @@ public class MyGdxGame extends ApplicationAdapter {
 
 //				各マスを描写
 				shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-//				shapeRenderer.setColor(0.94f, 0.835f, 0.694f, 1);
 				shapeRenderer.setColor(0.8f, 0.592f, 0.592f, 0.8f);
 				shapeRenderer.box(x, y, 0, blank_block_size, blank_block_size, 0);
 				shapeRenderer.end();
@@ -209,11 +286,11 @@ public class MyGdxGame extends ApplicationAdapter {
 				BlockModel block = new BlockModel(x, y);
 //				すでにブロックが存在する場合はブロックの情報を上書き
 				if(!backUpArray.isEmpty() && backUpArray.size > c_y && backUpArray.get(c_y).size > c_x) {
-					block.setValue(backUpArray.get(c_y).get(c_x).getBlockValue());
+					block.setValue(backUpArray.get(r_i).get(c_x).getBlockValue());
 				}
 				columns.add(block);
 			}
-
+			r_i++;
 			blockArray.add(columns);
 		}
 	}
@@ -230,8 +307,8 @@ public class MyGdxGame extends ApplicationAdapter {
 			int col_random_index = MathUtils.random(0, count - 1);
 //			位置情報
 			int row_index = 0;
-			int col_index = 0;
 			for(Array<BlockModel> row: blockArray){
+				int col_index = 0;
 				for(BlockModel col: row){
 //					ランダムな座標のマスで値が0である場合、2のブロックを追加し終了する
 					if(
@@ -240,7 +317,7 @@ public class MyGdxGame extends ApplicationAdapter {
 						col.getBlockValue() == consts.BLOCK_VALUE_NONE
 					){
 						col.setValue(2);
-						block_generator_flag = consts.BLOCK_VALUE_NONE;
+						block_generator_flag = 0;
 					}
 
 					col_index++;
@@ -270,9 +347,9 @@ public class MyGdxGame extends ApplicationAdapter {
 
 					//文字
 					batch.begin();
-//					bitmapFont.draw(batch, String.valueOf(col.getBlockValue()), col.getX() + new_width /1.7f ,  col.getY() + new_height/1.7f);
-//					TODO: xyの基準が0じゃない？
-					bitmapFont.draw(batch, String.valueOf(col.getBlockValue()), col.getX() + new_width ,  col.getY() + new_width);
+					bitmapFont.draw(batch, String.valueOf(col.getBlockValue()), col.getX() + new_width /1.5f ,  col.getY() + new_height/1.7f);
+//					TODO: xyの基準がWindowに依存している？
+//					logger_java.info(col.getX() + ", " + col.getY());
 					batch.end();
 				}
 			}
@@ -311,6 +388,243 @@ public class MyGdxGame extends ApplicationAdapter {
 				break;
 		}
 	}
+
+	/**
+	 * ブロックを上に寄せる
+	 */
+	private void upBlocks(){
+
+		for(int col_index = 0; col_index < blockArray.size; col_index++){
+			for(int row_index = 0; row_index < blockArray.size; row_index++){
+
+//				ブロックを詰める
+				Array<Integer> zero_last_index = new Array<>();
+				for (int i = row_index; i < blockArray.size; i++) {
+					int value = blockArray.get(i).get(col_index).getBlockValue();
+					if(value == consts.BLOCK_VALUE_NONE){
+//						値が存在しない場合は移動用マスとしてインデックスを保存
+						zero_last_index.add(i);
+					} else if(zero_last_index.size != 0) {
+//						値が存在する場合、上寄せする
+						blockArray.get(((int) zero_last_index.get(0))).get(col_index).setValue(value);
+						zero_last_index.removeIndex(0);
+						blockArray.get(i).get(col_index).removeValue();
+//						値が存在しない場合は移動用マスとしてインデックスを保存
+						zero_last_index.add(i);
+					}
+				}
+
+//				上下2個の値を取得
+				int top_block_value = blockArray.get(row_index).get(col_index).getBlockValue();
+//				下にブロックがないかチェック
+				int bottom_block_value = 0;
+				int bottom_index = row_index + 1;
+//				値が0以外のマスに当たるまで繰り返す
+				while (
+						bottom_index < blockArray.size && bottom_block_value == consts.BLOCK_VALUE_NONE
+				) {
+					bottom_block_value =
+							blockArray.get(bottom_index).get(col_index).getBlockValue();
+					bottom_index++;
+				}
+
+//				2個の値場合は上のブロックの値を大きくする
+				if(top_block_value == bottom_block_value){
+					blockArray.get(row_index).get(col_index).setValue(top_block_value + bottom_block_value);
+					blockArray.get(bottom_index - 1).get(col_index).removeValue();
+				}
+			}
+		}
+	}
+
+	/**
+	 * ブロックを下に寄せる
+	 */
+	private void downBlocks(){
+
+		for(int col_index = 0; col_index < blockArray.size; col_index++){
+			for(int row_index = blockArray.size - 1; row_index >= 0; row_index--){
+
+//				ブロックを詰める
+				Array<Integer> zero_last_index = new Array<>();
+				for (int i = blockArray.size - 1; i >= 0; i--) {
+					int value = blockArray.get(i).get(col_index).getBlockValue();
+					if(value == consts.BLOCK_VALUE_NONE){
+//						値が存在しない場合は移動用マスとしてインデックスを保存
+						zero_last_index.add(i);
+					} else if(zero_last_index.size != 0) {
+//						値が存在する場合、上寄せする
+						blockArray.get(((int) zero_last_index.get(0))).get(col_index).setValue(value);
+						zero_last_index.removeIndex(0);
+						blockArray.get(i).get(col_index).removeValue();
+//						値が存在しない場合は移動用マスとしてインデックスを保存
+						zero_last_index.add(i);
+					}
+				}
+
+//				上下2個の値を取得
+				int top_block_value = blockArray.get(row_index).get(col_index).getBlockValue();
+//				上にブロックがないかチェック
+				int bottom_block_value = 0;
+				int bottom_index = row_index - 1;
+//				値が0以外のマスに当たるまで繰り返す
+				while (
+						bottom_index >= 0 && bottom_block_value == consts.BLOCK_VALUE_NONE
+				) {
+					bottom_block_value =
+							blockArray.get(bottom_index).get(col_index).getBlockValue();
+					bottom_index--;
+				}
+
+//				2個の値場合は上のブロックの値を大きくする
+				if(top_block_value == bottom_block_value){
+					blockArray.get(row_index).get(col_index).setValue(top_block_value + bottom_block_value);
+					blockArray.get(bottom_index + 1).get(col_index).removeValue();
+				}
+			}
+		}
+	}
+
+	/**
+	 * ブロックを左に寄せる
+	 */
+	private void leftBlocks(){
+
+		for(int row_index = 0; row_index < blockArray.size; row_index++){
+			for(int col_index = 0; col_index < blockArray.size; col_index++){
+
+//				ブロックを詰める
+				Array<Integer>zero_last_index = new Array<>();
+				for (int i = col_index; i < blockArray.size; i++) {
+					int value = blockArray.get(row_index).get(i).getBlockValue();
+					if(value == consts.BLOCK_VALUE_NONE){
+//						値が存在しない場合は移動用マスとしてインデックスを保存
+						zero_last_index.add(i);
+					} else if(zero_last_index.size != 0) {
+//						値が存在する場合、上寄せする
+						blockArray.get(row_index).get(((int) zero_last_index.get(0))).setValue(value);
+						zero_last_index.removeIndex(0);
+						blockArray.get(row_index).get(i).removeValue();
+//						値が存在しない場合は移動用マスとしてインデックスを保存
+						zero_last_index.add(i);
+					}
+				}
+
+//				上下2個の値を取得
+				int top_block_value = blockArray.get(row_index).get(col_index).getBlockValue();
+//				下にブロックがないかチェック
+				int bottom_block_value = 0;
+				int bottom_index = col_index + 1;
+//				値が0以外のマスに当たるまで繰り返す
+				while (
+						bottom_index < blockArray.size && bottom_block_value == consts.BLOCK_VALUE_NONE
+				) {
+					bottom_block_value =
+							blockArray.get(row_index).get(bottom_index).getBlockValue();
+					bottom_index++;
+				}
+
+//				2個の値場合は上のブロックの値を大きくする
+				if(top_block_value == bottom_block_value){
+					blockArray.get(row_index).get(col_index).setValue(top_block_value + bottom_block_value);
+					blockArray.get(row_index).get(bottom_index - 1).removeValue();
+				}
+			}
+		}
+	}
+
+	/**
+	 * ブロックを右に寄せる
+	 */
+	private void rightBlocks(){
+
+		for(int row_index = 0; row_index < blockArray.size; row_index++){
+			for(int col_index = blockArray.size - 1; col_index >= 0; col_index--){
+//				ブロックを詰める
+				Array<Integer> zero_last_index = new Array<>();
+				for (int i = blockArray.size - 1; i >= 0; i--) {
+					int value = blockArray.get(row_index).get(i).getBlockValue();
+					if(value == consts.BLOCK_VALUE_NONE){
+//						値が存在しない場合は移動用マスとしてインデックスを保存
+						zero_last_index.add(i);
+					} else if(zero_last_index.size != 0) {
+//						値が存在する場合、上寄せする
+						blockArray.get(row_index).get(((int) zero_last_index.get(0))).setValue(value);
+						zero_last_index.removeIndex(0);
+						blockArray.get(row_index).get(i).removeValue();
+//						値が存在しない場合は移動用マスとしてインデックスを保存
+						zero_last_index.add(i);
+					}
+				}
+
+//				上下2個の値を取得
+				int top_block_value = blockArray.get(row_index).get(col_index).getBlockValue();
+//				上にブロックがないかチェック
+				int bottom_block_value = 0;
+				int bottom_index = col_index - 1;
+//				値が0以外のマスに当たるまで繰り返す
+				while (
+						bottom_index >= 0 && bottom_block_value == consts.BLOCK_VALUE_NONE
+				) {
+					bottom_block_value =
+							blockArray.get(row_index).get(bottom_index).getBlockValue();
+					bottom_index--;
+				}
+
+//				2個の値場合は上のブロックの値を大きくする
+				if(top_block_value == bottom_block_value){
+					blockArray.get(row_index).get(col_index).setValue(top_block_value + bottom_block_value);
+					blockArray.get(row_index).get(bottom_index + 1).removeValue();
+				}
+			}
+		}
+	}
+
+	/**
+	 * ブロックの状態からゲーム状況を判断する
+	 * @return 画面の状態
+	 */
+	private int gameEndCheck(){
+		boolean blank_flg = false;
+		boolean move_flag = false;
+		boolean clear_flg = false;
+
+		for(Array<BlockModel> row: blockArray){
+			int c_last_value = 1;
+
+			for(BlockModel col: row) {
+				int value = col.getBlockValue();
+//				2048ブロックがないかチェック
+				if (value == 2048) clear_flg = true;
+//				全マス0以外かチェック
+				if (value == consts.BLOCK_VALUE_NONE) blank_flg = true;
+//				横に重複ブロックがないかチェック
+				if (value == c_last_value) move_flag = true;
+				if (value != consts.BLOCK_VALUE_NONE) c_last_value = value;
+			}
+		}
+
+//		縦に重複ブロックがないかチェック
+		for(int c_i = 0; c_i < blockArray.size; c_i++){
+			int r_last_value = 1;
+
+			for(int r_i = 0; r_i < blockArray.size; r_i++){
+				int value = blockArray.get(r_i).get(c_i).getBlockValue();
+//				横に重複ブロックがないかチェック
+				if (value == r_last_value) move_flag = true;
+				if (value != consts.BLOCK_VALUE_NONE) r_last_value = value;
+			}
+		}
+
+		if (!blank_flg && move_flag){
+			return consts.GAME_OVER;
+		}
+		if (clear_flg){
+			return consts.GAME_CLEAR;
+		}
+		return consts.GAME_PLAYING;
+	}
+
 //	/**
 //	 * [開発時補助]座標(0.0)の位置で垂直に交わる線を描画する
 //	 */

@@ -2,14 +2,6 @@ package com.mygdx.game;
 
 public class BlockModel {
     /**
-     * 行位置
-     */
-    private int row_index;
-    /**
-     * 列位置
-     */
-    private int column_index;
-    /**
      * x座標
      */
     private float x;
@@ -34,7 +26,7 @@ public class BlockModel {
         this.block_value = block_value;
     }
 
-    public void removeValue(int block_value) {
+    public void removeValue() {
         this.block_value = 0;
     }
 
@@ -44,14 +36,6 @@ public class BlockModel {
 
     public float getY() {
         return y;
-    }
-
-    public int getRow_index() {
-        return row_index;
-    }
-
-    public int getColumn_index() {
-        return column_index;
     }
 
     public int getBlockValue() {
