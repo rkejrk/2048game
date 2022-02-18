@@ -13,5 +13,10 @@ public class Consts {
     final int GAME_PLAYING = 0;
     final int GAME_OVER = 1;
     final int GAME_CLEAR = 2;
+
+    final int PLATFORM_ANDROID = 0;
+    final int PLATFORM_IOS = 1;
+    final int PLATFORM_DESKTOP = 2;
+    final int PLATFORM_HTML = 3;
 }
 

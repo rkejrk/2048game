@@ -16,6 +16,6 @@ public class DesktopLauncher {
 				consts.STATIC_WIDTH * 10,
 				consts.STATIC_HEIGHT * 10
 		);
-		new Lwjgl3Application(new MyGdxGame(), config);
+		new Lwjgl3Application(new MyGdxGame(consts.PLATFORM_DESKTOP), config);
 	}
 }

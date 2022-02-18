@@ -3,8 +3,6 @@ package com.mygdx.game;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
-import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.FPSLogger;
@@ -14,13 +12,14 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.input.GestureDetector;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import java.util.logging.Logger;
 
 
-public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
+public class MyGdxGame extends ApplicationAdapter {
 	/**
 	 * 定数の参照
 	 */
@@ -42,7 +41,7 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 	 * ログを残す
 	 */
 	final private FPSLogger logger = new FPSLogger();
-	final private Logger logger_java = Logger.getLogger("afs");
+	Logger logger_java = Logger.getLogger("8778");
 	/**
 	 * スプライトを画面上に表示する
 	 */
@@ -87,6 +86,18 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 	 * 表示する画面の状態
 	 */
 	public int game_state = consts.GAME_OVER;
+	/**
+	 * プラットフォームの種類
+	 */
+	public int plat_form_type;
+
+	public MyGdxGame(){
+		this.plat_form_type = consts.PLATFORM_HTML;
+	}
+
+	public MyGdxGame(int plat_form_type){
+		this.plat_form_type = plat_form_type;
+	}
 
 	@Override
 	public void resize (int width, int height) {
@@ -103,8 +114,13 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 		prefs.putInteger("count", 4);
 		prefs.flush();
 
-		Gdx.input.setInputProcessor(this);
-
+		if(plat_form_type == consts.PLATFORM_ANDROID) {
+			Gdx.input.setInputProcessor(
+				new GestureDetector(new MyGestureListener(this))
+			);
+		} else {
+			Gdx.input.setInputProcessor(new MyInputProcessor(this));
+		}
 //		カメラで映す範囲を設定
 		camera = new OrthographicCamera(consts.STATIC_WIDTH, consts.STATIC_HEIGHT);
 		viewport = new FitViewport(consts.STATIC_WIDTH, consts.STATIC_HEIGHT, camera);
@@ -113,7 +129,7 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 		batch = new SpriteBatch();
 
 //		フォント表示の準備
-		fontGen = new FreeTypeFontGenerator(Gdx.files.local(consts.DIGITAL_FONT_PATH));
+		fontGen = new FreeTypeFontGenerator(Gdx.files.internal(consts.DIGITAL_FONT_PATH));
 		FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
 		param.size = 64;
 		param.color = Color.WHITE;
@@ -158,9 +174,6 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 		} else {
 //			ゲームクリアまたは、オーバーの場合ブロック情報を初期化する
 			blockArray = new Array<>();
-
-//			TODO: 広告を表示
-
 //			文字を表示
 			batch.begin();
 			if(game_state == consts.GAME_OVER) {
@@ -178,68 +191,6 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 		shapeRenderer.dispose();
 		fontGen.dispose();
 		bitmapFont.dispose();
-	}
-
-	@Override
-	public boolean keyDown (int keycode) {
-		if(game_state != consts.GAME_PLAYING){
-			game_state = consts.GAME_PLAYING;
-			return true;
-		}
-		if(keycode == Input.Keys.UP){
-			upBlocks();
-		} else if(keycode == Input.Keys.DOWN){
-			downBlocks();
-		} else if(keycode == Input.Keys.RIGHT){
-			rightBlocks();
-		} else if(keycode == Input.Keys.LEFT){
-			leftBlocks();
-		}
-//		方向キーの場合新しいブロックを作成する
-		if (
-				keycode == Input.Keys.UP ||
-				keycode == Input.Keys.DOWN ||
-				keycode == Input.Keys.LEFT ||
-				keycode == Input.Keys.RIGHT
-		){
-			block_generator_flag = 1;
-		}
-		return true;
-	}
-
-	@Override
-	public boolean keyUp(int keycode) {
-		return false;
-	}
-
-	@Override
-	public boolean keyTyped(char character) {
-		return false;
-	}
-
-	@Override
-	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-		return false;
-	}
-
-	@Override
-	public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-		return false;
-	}
-
-	@Override
-	public boolean touchDragged(int screenX, int screenY, int pointer) {
-		return false;
-	}
-
-	@Override
-	public boolean mouseMoved(int screenX, int screenY) {
-		return false;
-	}
-
-	@Override
-	public boolean scrolled(float amountX, float amountY) {
-		return false;
 	}
 
 	/**
@@ -392,7 +343,7 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 	/**
 	 * ブロックを上に寄せる
 	 */
-	private void upBlocks(){
+	public void upBlocks(){
 
 		for(int col_index = 0; col_index < blockArray.size; col_index++){
 			for(int row_index = 0; row_index < blockArray.size; row_index++){
@@ -440,7 +391,7 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 	/**
 	 * ブロックを下に寄せる
 	 */
-	private void downBlocks(){
+	public void downBlocks(){
 
 		for(int col_index = 0; col_index < blockArray.size; col_index++){
 			for(int row_index = blockArray.size - 1; row_index >= 0; row_index--){
@@ -488,7 +439,7 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 	/**
 	 * ブロックを左に寄せる
 	 */
-	private void leftBlocks(){
+	public void leftBlocks(){
 
 		for(int row_index = 0; row_index < blockArray.size; row_index++){
 			for(int col_index = 0; col_index < blockArray.size; col_index++){
@@ -536,7 +487,7 @@ public class MyGdxGame extends ApplicationAdapter implements InputProcessor {
 	/**
 	 * ブロックを右に寄せる
 	 */
-	private void rightBlocks(){
+	public void rightBlocks(){
 
 		for(int row_index = 0; row_index < blockArray.size; row_index++){
 			for(int col_index = blockArray.size - 1; col_index >= 0; col_index--){
