@@ -1,6 +1,14 @@
 # 2048game
 Challenge Creating 2048 Game by libGDX
 
+
+# 主な実装内容
+実装したプログラム
+<https://github.com/rkejrk/2048game/tree/main/source/core/src/com/mygdx/game>
+
+![ゲーム画面](./doc/image/run.gif)
+
+
 以下完成メモ
 # 課題
 SharpRenderのみで実装したため、文字との座標のずれあり
